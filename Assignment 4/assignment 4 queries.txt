@@ -1,0 +1,82 @@
+create table Permission (
+id int,
+name varchar(50),
+details varchar(250)
+);
+
+
+alter table "permission" add constraint pk_permission primary key (id);
+
+
+create table role(
+ id int,
+ name varchar(20),
+ role_details varchar(100),
+ permission_id int
+);
+
+
+alter table "role" add constraint fk_permissions foreign key (permission_id) references "permission" (id);
+alter table "role" add constraint pk_role primary key (id);
+
+
+create table users(
+id int,
+name varchar(30),
+age int,
+address varchar(200),
+bio varchar(100),
+role_id int
+);
+
+
+alter table "users" add constraint fk_users foreign key (role_id) references "role" (id);
+alter table "users" add constraint pk_users primary key (id);
+
+
+CREATE OR replace procedure createUser(userId int, username varchar(30), age int, address varchar(30), bio varchar(30), roleId int, roleName varchar, roleDetails varchar, perm_id int, perm_name varchar, perm_details varchar) 
+language plpgSQL
+AS $$
+BEGIN 
+	
+IF NOT EXISTS (select * from "role" where id = roleId) then 
+	call createRole(roleId, roleName, roleDetails, perm_id, perm_name, perm_details);
+END IF;
+	insert into "users" (id, name, age, address, bio, role_id) values (userId, username, age, address, bio, roleId);
+	commit;
+END;
+$$;
+
+
+
+CREATE OR replace procedure createRole(INT, TEXT, TEXT, INT, TEXT, TEXT) 
+language plpgSQL
+AS $$
+BEGIN 
+	
+IF NOT EXISTS (select * from "permission" where id = $4) then 
+	insert into "permission" (id, name, details) values ($4, $5, $6);
+END IF;
+	insert into "role" (id, name, role_details, permission_id) values ($1, $2, $3, $4);
+	commit;
+END;
+$$;
+
+
+call createRole(1, 'admin', 'This user is admin', 1, 'read', 'only read access');
+call createRole(2, 'customer', 'This user is customer', 1, 'read', 'only read access');
+
+call createUser(1, 'jack', 18, 'House no 13, street no 2', 'do nothing', 2, 'admin', 'This user is admin', 1, 'read', 'only read access');
+call createUser(2, 'jackee', 19, 'House no 13, street no 2', 'do nothing', 3, 'admin', 'This user is admin', 2, 'write', 'write only access');
+
+
+select * from "role";
+select * from "permission";
+select * from "users";
+
+
+CREATE VIEW UserView AS
+  SELECT u.id, u.name as username, u.address, r.name as rolename, r.role_details, p.name, p.details 
+  FROM "users" u, "role" r, "permission" p  where u.role_id = r.id and r.permission_id = p.id;
+  
+select * from UserView;
